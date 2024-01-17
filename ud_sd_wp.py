@@ -3,38 +3,28 @@ import requests
 import schedule
 import time
 
-cv_url='https://coursevania.com'
+cv_url='https://stilldiscount.com'
 
 def getCVLinks():
     cv_links_data = []
-    cv_divs = []
+    cv_as = []
     cv_page = requests.get(cv_url)
     soup = bs4(cv_page.text, 'html.parser')
-    # print(soup.prettify())
-    courses = soup.find_all('div', class_='stm_lms_courses__single_animation')
-    # print(courses)
-    for course in courses:
-        cv_div_soup = course.find('div', class_='stm_lms_courses__single--info_title')
-        cv_divs.append(cv_div_soup)
-    for cv_div in cv_divs:
+    #print(soup.prettify())
+    courses_ul = soup.find('ul', class_='product_list_widget')
+    courses_li = courses_ul.find_all('li')
+    #print(courses)
+    for course in courses_li:
+        cv_a_soup = course.find('a')
+        cv_as.append(cv_a_soup)
+    for cv_a in cv_as:
         # cv_link = cv_div.find('a').text.strip() # gets all the text inside the a tag, acts like innerHtml
-        cv_link = cv_div.find('a')['href']
+        cv_link = cv_a['href']
         cv_links_data.append(cv_link)
 
     #print(cv_links_data)
     return cv_links_data
     # print(cv_page.status_code)
-
-def getUDLinks(cv_links):
-    ud_links_data = []
-    for link in cv_links:
-        ud_page = requests.get(link)
-        soup = bs4(ud_page.text, 'html.parser')
-        ud_course_div = soup.find('div', class_ = 'stm-lms-buy-buttons')
-        ud_course_link = ud_course_div.find('a')['href']
-        ud_links_data.append(ud_course_link)
-    #print(ud_links_data)
-    return ud_links_data
 
 def get_coupon(title):
     #getPostUrl = 'http://localhost/cv/wp-json/wp/v2/coupon?_fields=acf.coupon_subtitle'
@@ -79,22 +69,27 @@ def create_coupon_wp(title, content, image_url, coupon_url):
 
     return resp
 
-def getUdemyCourse(ud_coupon_url):
-    udemy_course = requests.get(ud_coupon_url)
+def getUdemyCourse(ck_course_url):
+    udemy_course = requests.get(ck_course_url)
     soup_udemy_course = bs4(udemy_course.text, 'html.parser')
-    imgElem = soup_udemy_course.find("meta", {"property": "og:image"})
-    titleElem = soup_udemy_course.find("h1", {"data-purpose" : "lead-title"})
-    subTitleElem = soup_udemy_course.find("div", {"data-purpose": "lead-headline"})
-    reviewElem = soup_udemy_course.find("span", {"data-purpose": "rating-number"})
-    descElem = soup_udemy_course.find("div", {"data-purpose": "course-description"})
-    isCourseFound = get_coupon(titleElem.getText())
+    #print(soup_udemy_course)
     respon = ""
-    if isCourseFound:
-        print(isCourseFound)
-    else:
-        print("new course")
-        respon = create_coupon_wp(titleElem.getText(), descElem.getText(), imgElem['content'], ud_coupon_url)
-        print(respon)
+    try:
+        ck_coupon_a_tag = soup_udemy_course.find('a', class_='single_add_to_cart_button button alt')
+        ck_url = ck_coupon_a_tag['href']
+        titleElem = soup_udemy_course.find_all("h1", class_='product_title')
+        imgElem = soup_udemy_course.find("img", {"alt": titleElem[0].getText()})['data-src']
+        descElem = soup_udemy_course.find("div", class_='desc_content')
+        isCourseFound = get_coupon(titleElem[0].getText())
+
+        if isCourseFound:
+            print(isCourseFound)
+        else:
+            print("new course")
+            respon = create_coupon_wp(titleElem[0].getText(), descElem.getText(), imgElem, ck_url)
+            print(respon)
+    except:
+        print("Some error occurred")
     #mainContentWrapper = soup_udemy_course.find("div", class_="paid-course-landing-page__container")
     #enrollElem = mainContentWrapper.find("span", string="100% off")
     #enrollElem = mainContentWrapper.find("button", {"data-purpose": "buy-this-course-button"})
@@ -109,8 +104,7 @@ def listToString(s):
 
 def scrapper():
     cv_links = getCVLinks()
-    ud_links = getUDLinks(cv_links)
-    for clink in ud_links:
+    for clink in cv_links:
         getUdemyCourse(clink)
 
 def job():
